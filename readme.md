@@ -1,39 +1,61 @@
-# Firebase Hosting med GitHub Actions
+# Publiser nettsiden din med GitHub Desktop og Firebase
 
-En kortfattet guide for å deploye et HTML/CSS/JS-prosjekt til Firebase Hosting automatisk via GitHub.
+Når du lagrer filer i VS Code, dukker endringene opp i GitHub Desktop. Du skriver en kort melding, trykker **Push** – og nettsiden din oppdateres automatisk.
 
 ---
 
-## Forutsetninger
+## Du trenger
 
-- Et GitHub-repo med prosjektet ditt
+- [VS Code](https://code.visualstudio.com/)
+- [GitHub Desktop](https://desktop.github.com/)
+- En GitHub-konto
 - En Google-konto
-- Node.js installert lokalt
 
 ---
 
-## Steg 1 – Sett opp Firebase-prosjekt
+## Steg 1 – Opprett et repo i GitHub Desktop
+
+1. Åpne GitHub Desktop
+2. Klikk **File → New Repository**
+3. Gi repoet et navn (f.eks. `min-nettside`)
+4. Husk å huke av **Initialize this repository with a README**
+5. Klikk **Create Repository**
+6. Klikk **Publish repository** øverst – da legges repoet ut på GitHub
+
+---
+
+## Steg 2 – Åpne prosjektet i VS Code
+
+I GitHub Desktop: klikk **Open in Visual Studio Code**
+
+Lag filene dine her:
+
+```
+min-nettside/
+├── index.html
+├── style.css
+└── script.js
+```
+
+Hver gang du trykker **Ctrl+S** (lagre) i VS Code, vil endringen dukke opp i GitHub Desktop.
+
+---
+
+## Steg 3 – Sett opp Firebase
 
 1. Gå til [console.firebase.google.com](https://console.firebase.google.com)
-2. Klikk **Add project** og følg stegene
-3. Du trenger ikke Google Analytics
+2. Klikk **Add project**, gi det et navn og følg stegene
+3. Du trenger ikke Google Analytics eller bruk av Gemini
 
 ---
 
-## Steg 2 – Installer Firebase CLI
+## Steg 4 – Koble Firebase til prosjektet ditt
+
+Åpne terminalen i VS Code (**Terminal → New Terminal**) og kjør:
 
 ```bash
 npm install -g firebase-tools
 firebase login
-```
-
----
-
-## Steg 3 – Initialiser Firebase i prosjektet
-
-Kjør dette i rotmappen til prosjektet ditt:
-
-```bash
 firebase init hosting
 ```
 
@@ -42,36 +64,39 @@ Svar på spørsmålene slik:
 | Spørsmål | Svar |
 |---|---|
 | Which project? | Velg prosjektet du lagde |
-| Public directory? | `.` (eller f.eks. `public`) |
-| Single-page app? | `No` (med mindre du har en SPA) |
+| Public directory? | `.` |
+| Single-page app? | `No` |
 | Overwrite index.html? | `No` |
 
-Dette lager `firebase.json` og `.firebaserc` i prosjektmappen.
+NB. Hvis produktet ditt ikke skal bygges av node.js må du spesifisere at du ikke trenger dette i veiviseren (du får et spørsmål om dette etter at du har lagt inn brukernavn/repo). 
+
+To nye filer dukker opp i prosjektmappen: `firebase.json` og `.firebaserc`.
 
 ---
 
-## Steg 4 – Generer en CI-token
+## Steg 5 – Hent en Service Account-nøkkel
 
-```bash
-firebase login:ci
-```
+1. Gå til Firebase Console → velg prosjektet ditt
+2. Klikk tannhjulet → **Project settings → Service accounts**
+3. Klikk **Generate new private key** → last ned JSON-filen
+4. Åpne JSON-filen i VS Code og kopier innholdet
+---
 
-Kopier token-en du får — den skal inn i GitHub.
+## Steg 6 – Legg nøkkelen inn i GitHub
+
+1. Gå til repoet ditt på [github.com](https://github.com)
+2. Klikk **Settings → Secrets and variables → Actions → New repository secret**
+3. Navn: `FIREBASE_SERVICE_ACCOUNT`
+4. Verdi: lim inn hele JSON-innholdet
+5. Klikk **Add secret**
+
+> Finn prosjekt-ID-en i Firebase Console under **Project settings → General**.
 
 ---
 
-## Steg 5 – Legg token i GitHub Secrets
+## Steg 7 – Lag en automatisk deploy-fil
 
-1. Gå til repoet ditt på GitHub
-2. **Settings → Secrets and variables → Actions → New repository secret**
-3. Navn: `FIREBASE_TOKEN`
-4. Verdi: token-en fra forrige steg
-
----
-
-## Steg 6 – Lag en GitHub Actions-workflow
-
-Opprett filen `.github/workflows/deploy.yml` i repoet ditt:
+Opprett mappen `.github/workflows/` i prosjektet ditt, og lag filen `deploy.yml` der inne med dette innholdet:
 
 ```yaml
 name: Deploy til Firebase
@@ -91,55 +116,51 @@ jobs:
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           channelId: live
           projectId: ditt-prosjekt-id   # <-- bytt ut med ditt Firebase-prosjekt-ID
-```
 
-> Finn prosjekt-ID-en i Firebase Console under prosjektinnstillingene.
-
----
-
-## Steg 7 – Push og deploy
-
-```bash
-git add .
-git commit -m "Legg til Firebase-konfig og deploy-workflow"
-git push
-```
-
-GitHub Actions kjører nå automatisk og deployer til Firebase Hosting hver gang du pusher til `main`.
-
----
-
-## Nyttige kommandoer
-
-```bash
-firebase deploy          # manuell deploy fra terminalen
-firebase hosting:channel:deploy preview   # deploy til preview-URL uten å publisere
-firebase open hosting:site   # åpne siden i nettleseren
 ```
 
 ---
 
-## Spark vs. Blaze 
+## Slik ser arbeidsflyten ut fremover
 
-Spark er gratis og passer godt til små prosjekter. Blaze benyttes når prosjektet skaleres (flere brukere) og det blir behov for dynamiske elementer (bruk av vue, react o.l)., og tilgang til andre google funksjoner. Til vårt bruk, og i denne oppgaven, benyttes **Spark**. 
+```
+Lagre i VS Code (Ctrl+S)
+        ↓
+Endringer dukker opp i GitHub Desktop
+        ↓
+Skriv en kort beskjed (f.eks. "La til overskrift")
+        ↓
+Klikk "Commit to main"
+        ↓
+Klikk "Push origin"
+        ↓
+Nettsiden oppdateres automatisk på Firebase 🚀
+```
 
+Du kan se fremgangen under **Actions**-fanen i repoet ditt på GitHub. Når det står grønt hake er siden live.
 
-
-
+---
 
 ## Filstruktur etter oppsett
 
 ```
-prosjektet/
+min-nettside/
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml
-├── index.html
-├── style.css
-├── script.js
+├── public/
+│   └── index.html
+│   └── style.css
+│   └── script.js
 ├── .firebaserc
 └── firebase.json
 ```
+
+Legg merke til at alle filer ekspornert ut mot verden skal nå ligge under /public. 
+
+---
+
+> **OBS:** Ikke del eller commit JSON-filen med nøkkelen. Den skal kun brukes til å kopiere innholdet inn i GitHub Secrets.
